@@ -4,20 +4,18 @@ import re
 import string
 from pathlib import Path
 
-import numpy as np
-
-# =========================================
-# TensorFlow configuration
-# =========================================
-
 import tensorflow as tf
 
-# Keep TensorFlow from creating too many threads
+# Limit TensorFlow resources
 tf.config.threading.set_intra_op_parallelism_threads(1)
 tf.config.threading.set_inter_op_parallelism_threads(1)
 
-
-from flask import Flask, jsonify, render_template, request
+from flask import (
+    Flask,
+    jsonify,
+    render_template,
+    request
+)
 
 from tensorflow.keras.models import load_model
 from tensorflow.keras.preprocessing.sequence import pad_sequences
@@ -27,7 +25,9 @@ from tensorflow.keras.preprocessing.sequence import pad_sequences
 # BASE DIRECTORY
 # =========================================
 
-BASE_DIR = Path(__file__).resolve().parent
+BASE_DIR = Path(
+    __file__
+).resolve().parent
 
 
 # =========================================
@@ -35,7 +35,7 @@ BASE_DIR = Path(__file__).resolve().parent
 # =========================================
 
 with open(
-    BASE_DIR / "config.json",
+    BASE_DIR / "config_lite.json",
     "r",
     encoding="utf-8"
 ) as f:
@@ -44,11 +44,17 @@ with open(
 
 
 MAX_LENGTH = int(
-    CONFIG.get("max_length", 600)
+    CONFIG.get(
+        "max_length",
+        300
+    )
 )
 
 THRESHOLD = float(
-    CONFIG.get("threshold", 0.5)
+    CONFIG.get(
+        "threshold",
+        0.5
+    )
 )
 
 
@@ -56,69 +62,70 @@ THRESHOLD = float(
 # LOAD TOKENIZER
 # =========================================
 
-print("Loading tokenizer...")
+print(
+    "Loading GRU-Lite tokenizer..."
+)
 
 with open(
-    BASE_DIR / "imdb_tokenizer.pkl",
+    BASE_DIR / "imdb_tokenizer_lite.pkl",
     "rb"
 ) as f:
 
     tokenizer = pickle.load(f)
 
 
-print("Tokenizer loaded successfully.")
+print(
+    "Tokenizer loaded successfully."
+)
 
 
 # =========================================
 # LOAD MODEL
 # =========================================
 
-print("Loading GRU model...")
+print(
+    "Loading GRU-Lite model..."
+)
 
 model = load_model(
-    BASE_DIR / "imdb_gru_model.keras",
+    BASE_DIR / "imdb_gru_lite_model.keras",
     compile=False
 )
 
-print("GRU model loaded successfully.")
+print(
+    "GRU-Lite model loaded successfully."
+)
 
 
 # =========================================
-# FLASK APP
+# FLASK
 # =========================================
 
-app = Flask(__name__)
+app = Flask(
+    __name__
+)
 
 
 # =========================================
-# TEXT CLEANING
+# CLEAN TEXT
 # =========================================
 
-def clean_text(text: str) -> str:
+def clean_text(text):
 
-    """
-    Keep preprocessing aligned
-    with the training notebook.
-    """
-
-    # Remove HTML tags
     text = re.sub(
         r"<.*?>",
         " ",
         text
     )
 
-    # Lowercase
     text = text.lower()
 
-    # Remove URLs
     text = re.sub(
         r"https?://\S+|www\.\S+",
         " ",
         text
     )
 
-    # Remove punctuation
     text = text.translate(
         str.maketrans(
             "",
@@ -127,7 +134,6 @@ def clean_text(text: str) -> str:
         )
     )
 
-    # Remove extra spaces
     text = re.sub(
         r"\s+",
         " ",
@@ -138,21 +144,24 @@ def clean_text(text: str) -> str:
 
 
 # =========================================
-# SENTIMENT PREDICTION
+# PREDICTION
 # =========================================
 
-def predict_sentiment(review: str) -> dict:
+def predict_sentiment(review):
 
-    cleaned = clean_text(review)
-
-
-    # Convert text to sequence
-    sequence = tokenizer.texts_to_sequences(
-        [cleaned]
+    cleaned = clean_text(
+        review
     )
 
 
-    # Padding
+    sequence = (
+        tokenizer
+        .texts_to_sequences(
+            [cleaned]
+        )
+    )
+
+
     padded = pad_sequences(
         sequence,
         maxlen=MAX_LENGTH,
@@ -161,19 +170,14 @@ def predict_sentiment(review: str) -> dict:
     )
 
 
-    # Model prediction
-    prediction = model.predict(
-        padded,
-        verbose=0
-    )
-
-
     probability = float(
-        prediction[0][0]
+        model.predict(
+            padded,
+            verbose=0
+        )[0][0]
     )
 
 
-    # Determine sentiment
     if probability >= THRESHOLD:
 
         sentiment = "Positive"
@@ -204,17 +208,10 @@ def predict_sentiment(review: str) -> dict:
                 2
             ),
 
-        "negative_probability":
-            round(
-                (1.0 - probability) * 100,
-                2
-            ),
-
         "word_count":
-            len(review.split()),
-
-        "cleaned_word_count":
-            len(cleaned.split())
+            len(
+                review.split()
+            )
     }
 
 
@@ -231,7 +228,7 @@ def home():
 
 
 # =========================================
-# HEALTH CHECK
+# HEALTH
 # =========================================
 
 @app.get("/health")
@@ -239,17 +236,20 @@ def health():
 
     return jsonify({
 
-        "status": "ok",
+        "status":
+            "ok",
 
-        "model": "GRU",
+        "model":
+            "GRU-Lite",
 
         "max_length":
             MAX_LENGTH
+
     })
 
 
 # =========================================
-# PREDICT API
+# PREDICT
 # =========================================
 
 @app.post("/predict")
@@ -257,23 +257,11 @@ def predict():
 
     try:
 
-        # Get JSON safely
         data = request.get_json(
             silent=True
-        )
+        ) or {}
 
 
-        if not data:
-
-            return jsonify({
-
-                "error":
-                    "No JSON data received."
-
-            }), 400
-
-
-        # Get review
         review = str(
             data.get(
                 "review",
@@ -282,7 +270,6 @@ def predict():
         ).strip()
 
 
-        # Empty review
         if not review:
 
             return jsonify({
@@ -293,7 +280,6 @@ def predict():
             }), 400
 
 
-        # Maximum length
         if len(review) > 12000:
 
             return jsonify({
@@ -304,36 +290,17 @@ def predict():
             }), 400
 
 
-        print(
-            f"Prediction requested. "
-            f"Characters: {len(review)}"
-        )
-
-
-        # Run prediction
         result = predict_sentiment(
             review
         )
 
 
-        print(
-            f"Prediction result: "
-            f"{result['sentiment']} "
-            f"({result['confidence']}%)"
-        )
-
-
-        # Return JSON
         return jsonify(
             result
         ), 200
 
 
     except Exception as exc:
-
-        # IMPORTANT:
-        # This prints the complete traceback
-        # in Render logs.
 
         app.logger.exception(
             "Prediction failed"
@@ -349,7 +316,7 @@ def predict():
 
 
 # =========================================
-# LOCAL DEVELOPMENT
+# LOCAL
 # =========================================
 
 if __name__ == "__main__":

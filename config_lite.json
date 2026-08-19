@@ -1,0 +1,8 @@
+{
+    "max_length": 300,
+    "threshold": 0.5,
+    "vocab_size": 20000,
+    "model": "GRU-Lite",
+    "embedding_dim": 64,
+    "gru_units": 64
+}
