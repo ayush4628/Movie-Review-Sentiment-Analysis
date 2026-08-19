@@ -1,0 +1,200 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+    <meta
+      name="description"
+      content="Movie review sentiment analysis powered by GRU."
+    />
+
+    <title>Movie Review Sentiment Analysis</title>
+
+    <link
+      rel="stylesheet"
+      href="{{ url_for('static', filename='style.css') }}"
+    />
+  </head>
+
+  <body>
+    <!-- Background -->
+    <div class="ambient ambient-a"></div>
+    <div class="ambient ambient-b"></div>
+
+    <main class="shell">
+      <!-- =========================
+             HERO
+        ========================== -->
+
+      <section class="hero">
+        <h1>
+          What did you
+          <em>really</em>
+          <br />
+          think of the movie?
+        </h1>
+      </section>
+
+      <!-- =========================
+             WORKSPACE
+        ========================== -->
+
+      <section class="workspace">
+        <!-- =====================
+                 REVIEW INPUT
+            ====================== -->
+
+        <div class="input-panel panel">
+          <div class="panel-head">
+            <div>
+              <span class="section-kicker"> YOUR REVIEW </span>
+
+              <h2>Tell us what you watched</h2>
+            </div>
+
+            <span class="counter" id="counter"> 0 / 12,000 </span>
+          </div>
+
+          <label for="review" class="sr-only"> Movie review </label>
+
+          <textarea
+            id="review"
+            maxlength="12000"
+            placeholder="Example: The story was beautifully written, the performances were brilliant, and I loved every minute of it..."
+            spellcheck="true"
+          ></textarea>
+
+          <!-- Example reviews -->
+
+          <div class="quick-row">
+            <span class="quick-label"> TRY AN EXAMPLE </span>
+
+            <button
+              class="example"
+              data-review="This movie was absolutely amazing. The story was fantastic, the acting was brilliant, and I really enjoyed watching it."
+            >
+              Brilliant
+            </button>
+
+            <button
+              class="example"
+              data-review="The movie started very well, but the second half was extremely boring and disappointing."
+            >
+              Disappointing
+            </button>
+
+            <button
+              class="example"
+              data-review="The visuals were impressive, but the story was predictable and the characters felt flat."
+            >
+              Mixed
+            </button>
+          </div>
+
+          <!-- Buttons -->
+
+          <div class="actions">
+            <button class="clear-btn" id="clearBtn" type="button">Clear</button>
+
+            <button class="analyze-btn" id="analyzeBtn" type="button">
+              <span class="btn-text">
+                Analyze sentiment
+                <span>→</span>
+              </span>
+
+              <span class="spinner" aria-hidden="true"></span>
+            </button>
+          </div>
+        </div>
+
+        <!-- =====================
+                 RESULT
+            ====================== -->
+
+        <aside class="result-panel panel" aria-live="polite">
+          <div class="panel-head result-head">
+            <div>
+              <span class="section-kicker"> MODEL OUTPUT </span>
+
+              <h2 id="resultTitle">Ready when you are</h2>
+            </div>
+
+            <span class="status-dot" id="statusDot"></span>
+          </div>
+
+          <!-- Empty state -->
+
+          <div class="empty-state" id="emptyState">
+            <div class="film-icon">◉</div>
+
+            <p>Your result will appear here.</p>
+
+            <small>
+              Write a movie review and let the model analyze its sentiment.
+            </small>
+          </div>
+
+          <!-- Prediction -->
+
+          <div class="result-content hidden" id="resultContent">
+            <div class="sentiment-row">
+              <div class="sentiment-icon" id="sentimentIcon">✓</div>
+
+              <div>
+                <span class="result-label"> PREDICTED SENTIMENT </span>
+
+                <strong id="sentiment"> Positive </strong>
+              </div>
+            </div>
+
+            <!-- Confidence -->
+
+            <div class="confidence-block">
+              <div class="confidence-top">
+                <span> Confidence </span>
+
+                <strong id="confidence"> 0% </strong>
+              </div>
+
+              <div class="meter">
+                <div class="meter-fill" id="meterFill"></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Error -->
+
+          <div class="error hidden" id="errorBox"></div>
+        </aside>
+      </section>
+
+      <!-- =========================
+             FOOTER
+        ========================== -->
+
+      <footer>
+        <span>
+          Created with
+
+          <button
+            id="themeToggle"
+            class="heart-toggle"
+            title="Switch to bright mode"
+            aria-label="Switch theme"
+            type="button"
+          >
+            ♥
+          </button>
+
+          by Ayush
+        </span>
+
+        <span> © 2026 </span>
+      </footer>
+    </main>
+
+    <script src="{{ url_for('static', filename='app.js') }}"></script>
+  </body>
+</html>
