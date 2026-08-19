@@ -51,10 +51,24 @@ const themeToggle =
 
 function updateCounter() {
 
-  counter.textContent =
-    `${review.value.length.toLocaleString()} / 12,000`;
+  const currentLength =
+    review.value.length;
 
+  counter.textContent =
+    `${currentLength.toLocaleString()} / 12,000`;
 }
+
+
+/*
+   IMPORTANT:
+   Update counter whenever the user
+   types, pastes, cuts, or edits text.
+*/
+
+review.addEventListener(
+  "input",
+  updateCounter
+);
 
 
 /* =========================================
@@ -84,12 +98,11 @@ function showError(message) {
   statusDot.classList.remove(
     "active"
   );
-
 }
 
 
 /* =========================================
-   RESET
+   RESET RESULT
 ========================================= */
 
 function resetResult() {
@@ -112,7 +125,6 @@ function resetResult() {
   statusDot.classList.remove(
     "active"
   );
-
 }
 
 
@@ -136,7 +148,6 @@ document
         resetResult();
 
         review.focus();
-
       }
     );
 
@@ -144,7 +155,7 @@ document
 
 
 /* =========================================
-   CLEAR
+   CLEAR BUTTON
 ========================================= */
 
 clearBtn.addEventListener(
@@ -158,13 +169,12 @@ clearBtn.addEventListener(
     resetResult();
 
     review.focus();
-
   }
 );
 
 
 /* =========================================
-   ANALYZE
+   ANALYZE SENTIMENT
 ========================================= */
 
 analyzeBtn.addEventListener(
@@ -175,6 +185,8 @@ analyzeBtn.addEventListener(
       review.value.trim();
 
 
+    /* Check empty review */
+
     if (!text) {
 
       showError(
@@ -184,9 +196,10 @@ analyzeBtn.addEventListener(
       review.focus();
 
       return;
-
     }
 
+
+    /* Loading state */
 
     analyzeBtn.disabled = true;
 
@@ -231,15 +244,18 @@ analyzeBtn.addEventListener(
         await response.json();
 
 
+      /* Check Flask response */
+
       if (!response.ok) {
 
         throw new Error(
           data.error ||
           "Prediction failed."
         );
-
       }
 
+
+      /* Determine sentiment */
 
       const isPositive =
         data.sentiment === "Positive";
@@ -272,6 +288,8 @@ analyzeBtn.addEventListener(
         `${data.confidence.toFixed(2)}%`;
 
 
+      /* Confidence progress bar */
+
       meterFill.style.width =
         `${Math.min(
           data.confidence,
@@ -279,7 +297,7 @@ analyzeBtn.addEventListener(
         )}%`;
 
 
-      /* Icon */
+      /* Sentiment icon */
 
       sentimentIcon.textContent =
         isPositive
@@ -297,10 +315,14 @@ analyzeBtn.addEventListener(
 
     catch (error) {
 
+      console.error(
+        "Prediction error:",
+        error
+      );
+
       showError(
         error.message
       );
-
     }
 
 
@@ -311,7 +333,6 @@ analyzeBtn.addEventListener(
       analyzeBtn.classList.remove(
         "loading"
       );
-
     }
 
   }
@@ -333,7 +354,6 @@ review.addEventListener(
     ) {
 
       analyzeBtn.click();
-
     }
 
   }
@@ -341,7 +361,7 @@ review.addEventListener(
 
 
 /* =========================================
-   THEME
+   DARK / BRIGHT MODE
 ========================================= */
 
 function setTheme(theme) {
@@ -375,9 +395,7 @@ function setTheme(theme) {
       "movieMindTheme",
       "dark"
     );
-
   }
-
 }
 
 
@@ -400,13 +418,12 @@ themeToggle.addEventListener(
         ? "dark"
         : "light"
     );
-
   }
 );
 
 
 /* =========================================
-   LOAD THEME
+   LOAD SAVED THEME
 ========================================= */
 
 const savedTheme =
@@ -424,7 +441,6 @@ if (savedTheme === "light") {
 else {
 
   setTheme("dark");
-
 }
 
 
