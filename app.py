@@ -2,13 +2,20 @@ import json
 import pickle
 import re
 import string
+import time
 from pathlib import Path
 
+import numpy as np
 import tensorflow as tf
 
-# Limit TensorFlow resources
+
+# =========================================
+# TENSORFLOW RESOURCE OPTIMIZATION
+# =========================================
+
 tf.config.threading.set_intra_op_parallelism_threads(1)
 tf.config.threading.set_inter_op_parallelism_threads(1)
+
 
 from flask import (
     Flask,
@@ -25,9 +32,7 @@ from tensorflow.keras.preprocessing.sequence import pad_sequences
 # BASE DIRECTORY
 # =========================================
 
-BASE_DIR = Path(
-    __file__
-).resolve().parent
+BASE_DIR = Path(__file__).resolve().parent
 
 
 # =========================================
@@ -62,9 +67,7 @@ THRESHOLD = float(
 # LOAD TOKENIZER
 # =========================================
 
-print(
-    "Loading GRU-Lite tokenizer..."
-)
+print("Loading GRU-Lite tokenizer...")
 
 with open(
     BASE_DIR / "imdb_tokenizer_lite.pkl",
@@ -74,58 +77,73 @@ with open(
     tokenizer = pickle.load(f)
 
 
-print(
-    "Tokenizer loaded successfully."
-)
+print("GRU-Lite tokenizer loaded successfully.")
 
 
 # =========================================
 # LOAD MODEL
 # =========================================
 
-print(
-    "Loading GRU-Lite model..."
-)
+print("Loading GRU-Lite model...")
 
 model = load_model(
     BASE_DIR / "imdb_gru_lite_model.keras",
     compile=False
 )
 
-print(
-    "GRU-Lite model loaded successfully."
-)
+print("GRU-Lite model loaded successfully.")
 
 
 # =========================================
-# FLASK
+# MODEL WARM-UP
 # =========================================
 
-app = Flask(
-    __name__
+print("Warming up GRU-Lite model...")
+
+dummy_input = np.zeros(
+    (1, MAX_LENGTH),
+    dtype=np.int32
 )
+
+model(
+    dummy_input,
+    training=False
+)
+
+print("GRU-Lite model warm-up completed.")
+
+
+# =========================================
+# FLASK APPLICATION
+# =========================================
+
+app = Flask(__name__)
 
 
 # =========================================
 # CLEAN TEXT
 # =========================================
 
-def clean_text(text):
+def clean_text(text: str) -> str:
 
+    # Remove HTML tags
     text = re.sub(
         r"<.*?>",
         " ",
         text
     )
 
+    # Convert to lowercase
     text = text.lower()
 
+    # Remove URLs
     text = re.sub(
         r"https?://\S+|www\.\S+",
         " ",
         text
     )
 
+    # Remove punctuation
     text = text.translate(
         str.maketrans(
             "",
@@ -134,6 +152,7 @@ def clean_text(text):
         )
     )
 
+    # Remove extra spaces
     text = re.sub(
         r"\s+",
         " ",
@@ -144,23 +163,34 @@ def clean_text(text):
 
 
 # =========================================
-# PREDICTION
+# SENTIMENT PREDICTION
 # =========================================
 
-def predict_sentiment(review):
+def predict_sentiment(review: str) -> dict:
+
+    total_start = time.time()
+
+    # -------------------------------------
+    # CLEAN TEXT
+    # -------------------------------------
 
     cleaned = clean_text(
         review
     )
 
 
-    sequence = (
-        tokenizer
-        .texts_to_sequences(
-            [cleaned]
-        )
+    # -------------------------------------
+    # TOKENIZATION
+    # -------------------------------------
+
+    sequence = tokenizer.texts_to_sequences(
+        [cleaned]
     )
 
+
+    # -------------------------------------
+    # PADDING
+    # -------------------------------------
 
     padded = pad_sequences(
         sequence,
@@ -170,13 +200,45 @@ def predict_sentiment(review):
     )
 
 
-    probability = float(
-        model.predict(
-            padded,
-            verbose=0
-        )[0][0]
+    preprocessing_time = (
+        time.time() - total_start
     )
 
+    print(
+        f"Preprocessing time: "
+        f"{preprocessing_time:.4f}s"
+    )
+
+
+    # -------------------------------------
+    # MODEL INFERENCE
+    # -------------------------------------
+
+    prediction_start = time.time()
+
+    prediction = model(
+        padded,
+        training=False
+    )
+
+    probability = float(
+        prediction.numpy()[0][0]
+    )
+
+
+    inference_time = (
+        time.time() - prediction_start
+    )
+
+    print(
+        f"Model inference time: "
+        f"{inference_time:.4f}s"
+    )
+
+
+    # -------------------------------------
+    # SENTIMENT
+    # -------------------------------------
 
     if probability >= THRESHOLD:
 
@@ -190,6 +252,34 @@ def predict_sentiment(review):
 
         confidence = 1.0 - probability
 
+
+    # -------------------------------------
+    # TOTAL TIME
+    # -------------------------------------
+
+    total_time = (
+        time.time() - total_start
+    )
+
+    print(
+        f"Total prediction time: "
+        f"{total_time:.4f}s"
+    )
+
+    print(
+        f"Prediction probability: "
+        f"{probability:.6f}"
+    )
+
+    print(
+        f"Sentiment: "
+        f"{sentiment}"
+    )
+
+
+    # -------------------------------------
+    # RESPONSE
+    # -------------------------------------
 
     return {
 
@@ -228,7 +318,7 @@ def home():
 
 
 # =========================================
-# HEALTH
+# HEALTH CHECK
 # =========================================
 
 @app.get("/health")
@@ -243,13 +333,16 @@ def health():
             "GRU-Lite",
 
         "max_length":
-            MAX_LENGTH
+            MAX_LENGTH,
+
+        "threshold":
+            THRESHOLD
 
     })
 
 
 # =========================================
-# PREDICT
+# PREDICT API
 # =========================================
 
 @app.post("/predict")
@@ -257,10 +350,18 @@ def predict():
 
     try:
 
+        # ---------------------------------
+        # GET JSON DATA
+        # ---------------------------------
+
         data = request.get_json(
             silent=True
         ) or {}
 
+
+        # ---------------------------------
+        # GET REVIEW
+        # ---------------------------------
 
         review = str(
             data.get(
@@ -269,6 +370,10 @@ def predict():
             )
         ).strip()
 
+
+        # ---------------------------------
+        # EMPTY REVIEW
+        # ---------------------------------
 
         if not review:
 
@@ -280,6 +385,10 @@ def predict():
             }), 400
 
 
+        # ---------------------------------
+        # MAXIMUM LENGTH
+        # ---------------------------------
+
         if len(review) > 12000:
 
             return jsonify({
@@ -290,8 +399,42 @@ def predict():
             }), 400
 
 
+        print(
+            "----------------------------------------"
+        )
+
+        print(
+            f"Prediction request received."
+        )
+
+        print(
+            f"Review characters: {len(review)}"
+        )
+
+        print(
+            f"Review words: {len(review.split())}"
+        )
+
+
+        # ---------------------------------
+        # PREDICT
+        # ---------------------------------
+
         result = predict_sentiment(
             review
+        )
+
+
+        # ---------------------------------
+        # RETURN RESULT
+        # ---------------------------------
+
+        print(
+            "Prediction completed successfully."
+        )
+
+        print(
+            "----------------------------------------"
         )
 
 
@@ -316,7 +459,7 @@ def predict():
 
 
 # =========================================
-# LOCAL
+# LOCAL DEVELOPMENT
 # =========================================
 
 if __name__ == "__main__":
