@@ -59,12 +59,6 @@ function updateCounter() {
 }
 
 
-/*
-   IMPORTANT:
-   Update counter whenever the user
-   types, pastes, cuts, or edits text.
-*/
-
 review.addEventListener(
   "input",
   updateCounter
@@ -155,7 +149,7 @@ document
 
 
 /* =========================================
-   CLEAR BUTTON
+   CLEAR
 ========================================= */
 
 clearBtn.addEventListener(
@@ -185,8 +179,6 @@ analyzeBtn.addEventListener(
       review.value.trim();
 
 
-    /* Check empty review */
-
     if (!text) {
 
       showError(
@@ -199,7 +191,7 @@ analyzeBtn.addEventListener(
     }
 
 
-    /* Loading state */
+    /* Loading */
 
     analyzeBtn.disabled = true;
 
@@ -229,6 +221,9 @@ analyzeBtn.addEventListener(
 
             headers: {
               "Content-Type":
+                "application/json",
+
+              "Accept":
                 "application/json"
             },
 
@@ -240,28 +235,103 @@ analyzeBtn.addEventListener(
         );
 
 
-      const data =
-        await response.json();
+      /*
+       * IMPORTANT:
+       * Don't directly call response.json().
+       *
+       * First read the response as text.
+       */
+
+      const rawResponse =
+        await response.text();
 
 
-      /* Check Flask response */
+      console.log(
+        "HTTP Status:",
+        response.status
+      );
+
+      console.log(
+        "Server Response:",
+        rawResponse
+      );
+
+
+      /*
+       * Empty response
+       */
+
+      if (!rawResponse.trim()) {
+
+        throw new Error(
+          `Server returned an empty response (HTTP ${response.status}). Check the Render logs for the /predict error.`
+        );
+      }
+
+
+      /*
+       * Convert response to JSON
+       */
+
+      let data;
+
+      try {
+
+        data =
+          JSON.parse(
+            rawResponse
+          );
+
+      }
+
+      catch (jsonError) {
+
+        console.error(
+          "Invalid JSON:",
+          rawResponse
+        );
+
+        throw new Error(
+          `Server returned a non-JSON response (HTTP ${response.status}). Check the Render logs.`
+        );
+      }
+
+
+      /*
+       * Flask returned an error
+       */
 
       if (!response.ok) {
 
         throw new Error(
           data.error ||
-          "Prediction failed."
+          "Prediction failed on the server."
         );
       }
 
 
-      /* Determine sentiment */
+      /*
+       * Validate prediction
+       */
+
+      if (
+        !data.sentiment ||
+        data.confidence === undefined
+      ) {
+
+        throw new Error(
+          "Invalid prediction response from Flask."
+        );
+      }
+
+
+      /* =================================
+         SHOW RESULT
+      ================================= */
 
       const isPositive =
         data.sentiment === "Positive";
 
-
-      /* Show result */
 
       emptyState.classList.add(
         "hidden"
@@ -284,20 +354,26 @@ analyzeBtn.addEventListener(
 
       /* Confidence */
 
+      const confidenceValue =
+        Number(
+          data.confidence
+        );
+
+
       confidence.textContent =
-        `${data.confidence.toFixed(2)}%`;
+        `${confidenceValue.toFixed(2)}%`;
 
 
-      /* Confidence progress bar */
+      /* Progress */
 
       meterFill.style.width =
         `${Math.min(
-          data.confidence,
+          confidenceValue,
           100
         )}%`;
 
 
-      /* Sentiment icon */
+      /* Icon */
 
       sentimentIcon.textContent =
         isPositive
@@ -328,7 +404,8 @@ analyzeBtn.addEventListener(
 
     finally {
 
-      analyzeBtn.disabled = false;
+      analyzeBtn.disabled =
+        false;
 
       analyzeBtn.classList.remove(
         "loading"
@@ -361,7 +438,7 @@ review.addEventListener(
 
 
 /* =========================================
-   DARK / BRIGHT MODE
+   THEME
 ========================================= */
 
 function setTheme(theme) {
@@ -423,7 +500,7 @@ themeToggle.addEventListener(
 
 
 /* =========================================
-   LOAD SAVED THEME
+   LOAD THEME
 ========================================= */
 
 const savedTheme =
