@@ -288,27 +288,6 @@ Send a movie review to the endpoint.
 A health-check endpoint is available to verify that the Flask application is running correctly.
 
 ---
-
-## 🧪 Model Testing
-
-The repository contains a separate script:
-
-```text
-check_model.py
-```
-
-It can be used to test the trained model and tokenizer independently.
-
-Run:
-
-```bash
-python check_model.py
-```
-
-You can also test the model directly through the deployed web application.
-
----
-
 ## 💻 Run Locally
 
 Follow these steps to run the project on your local machine.
